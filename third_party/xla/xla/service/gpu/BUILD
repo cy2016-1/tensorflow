@@ -747,7 +747,7 @@ cc_library(
         "@local_tsl//tsl/platform:errors",
         "@local_tsl//tsl/platform:status",
         "@local_tsl//tsl/platform:statusor",
-        "@local_tsl//tsl/util/proto:proto_utils",
+        "//xla/tsl/util/proto:proto_utils",
     ]),
 )
 
@@ -1819,6 +1819,7 @@ cc_library(
         "//xla/stream_executor:device_memory",
         "//xla/stream_executor:device_memory_allocator",
         "//xla/stream_executor/gpu:redzone_allocator",
+        "//xla/tsl/util/proto:proto_utils",
         "//xla:util",
         "//xla:autotuning_proto_cc",
         "//xla:shape_util",
@@ -1826,7 +1827,6 @@ cc_library(
         "@local_tsl//tsl/platform:errors",
         "@local_tsl//tsl/platform:logging",
         "@local_tsl//tsl/platform:statusor",
-        "@local_tsl//tsl/util/proto:proto_utils",
     ]),
 )
 
@@ -2166,7 +2166,7 @@ cc_library(
         "@local_tsl//tsl/platform:logging",
         "@local_tsl//tsl/platform:numbers",
         "@local_tsl//tsl/platform:statusor",
-        "@local_tsl//tsl/util/proto:proto_utils",
+        "//xla/tsl/util/proto:proto_utils",
     ]),
 )
 
@@ -3993,7 +3993,7 @@ cc_library(
         "@local_tsl//tsl/platform:status",
         "@local_tsl//tsl/platform:statusor",
         "@local_tsl//tsl/profiler/lib:traceme",
-        "@local_tsl//tsl/util:env_var",
+        "//xla/tsl/util:env_var",
     ]),
 )
 
@@ -4465,6 +4465,8 @@ cc_library(
         "//xla/service:hlo_module_config",
         "//xla/stream_executor",
         "//xla/stream_executor:launch_dim",
+        "//xla/tsl/util:env_var",
+        "//xla/tsl/util/proto:proto_utils",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/log",
@@ -4480,8 +4482,6 @@ cc_library(
         "@local_tsl//tsl/platform:ml_dtypes",
         "@local_tsl//tsl/platform:status",
         "@local_tsl//tsl/platform:statusor",
-        "@local_tsl//tsl/util:env_var",
-        "@local_tsl//tsl/util/proto:proto_utils",
     ],
 )
 
@@ -4492,10 +4492,10 @@ xla_cc_test(
         ":stream_executor_util",
         "//xla:autotuning_proto_cc",
         "//xla/service:hlo_module_config",
+        "//xla/tsl/util/proto:proto_utils",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/time",
         "@com_google_googletest//:gtest_main",
-        "@local_tsl//tsl/util/proto:proto_utils",
     ],
 )
 
