@@ -128,6 +128,9 @@ def if_google(google_value, oss_value = []):
     """
     return oss_value  # copybara:comment_replace return google_value
 
+def if_cuda_configured(cuda_value, default_value = []):
+    return if_cuda(cuda_value, default_value)
+
 def if_v2(a):
     return select({
         clean_dep("//tensorflow:api_version_2"): a,
@@ -2744,6 +2747,7 @@ def gpu_py_test(
         test_tags = tags
         if config == "gpu":
             test_tags = test_tags + tf_gpu_tests_tags()
+            data = data + if_oss(if_cuda(["@cuda_nvcc//:bin", "@cuda_nvcc//:nvvm"]))
         if config == "2gpu":
             test_tags = test_tags + two_gpu_tags
             if "requires-gpu-nvidia" in test_tags:
