@@ -37,6 +37,7 @@ limitations under the License.
 #include "xla/service/hlo_pass_interface.h"
 #include "xla/service/logical_buffer.h"
 #include "xla/service/tuple_points_to_analysis.h"
+#include "xla/shape.h"
 #include "xla/shape_layout.h"
 #include "xla/shape_util.h"
 #include "xla/statusor.h"
@@ -536,6 +537,26 @@ class LayoutAssignment : public HloModulePass {
   }
   void ClearAddedConstraints() { added_constraints_.clear(); }
 
+  // The shapes in caller can be different from the shapes in callee. For
+  // example, a shape (1024, 128) can be distributed to four cores so the shape
+  // in each core is (256, 128). When verifying the callee's shapes based on the
+  // caller, we should use this function to compute the expected shape.
+  // The param_id should be the parameter id of the shape or -1 for the result
+  // output or unknown.
+  virtual Shape ShardedShape(const HloInstruction* call, const Shape& shape,
+                             int param_id) {
+    return shape;
+  }
+  // When verifying the caller's shapes based on the callee, we should use this
+  // function to compute the expected shape.
+  // The param_id should be the parameter id of the shape or -1 for the result
+  // output or unknown.
+  virtual Shape UnShardedShape(const HloInstruction* call, const Shape& shape,
+                               int param_id) {
+    return shape;
+  }
+  Status CheckCallLayout(HloInstruction* call,
+                         const ComputationLayout& computation_layout);
   // This method can be overridden to add backend-specific constraints to the
   // layout of the instructions of a computation. This method is called after
   // all mandatory constraints have been added via AddMandatoryConstraints
