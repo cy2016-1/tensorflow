@@ -599,7 +599,6 @@ xla_test(
     srcs = if_cuda_is_configured(["ir_emitter_triton_test.cc"]),
     backends = [
         "gpu_a100",
-        "gpu_v100",
     ],
     shard_count = 20,
     tags = ["nomac"],
@@ -635,7 +634,6 @@ xla_test(
         "@llvm-project//llvm:ir_headers",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Pass",
-        "@llvm-project//mlir:Transforms",
         "@local_tsl//tsl/lib/core:status_test_util",
         "@local_tsl//tsl/platform:env",
         "@local_tsl//tsl/platform:errors",
@@ -651,7 +649,7 @@ xla_test(
     name = "ir_emitter_triton_large_test",
     srcs = if_cuda_is_configured(["ir_emitter_triton_large_test.cc"]),
     backend_tags = {"gpu": [
-        "requires-gpu-sm70",
+        "requires-gpu-sm80",
     ]},
     backends = ["gpu"],
     tags = [
@@ -676,7 +674,6 @@ xla_test(
     srcs = if_cuda_is_configured(["ir_emitter_triton_parametrized_test.cc"]),
     backends = [
         "gpu_a100",
-        "gpu_v100",
     ],
     shard_count = 10,
     tags = ["nomac"],
@@ -764,7 +761,7 @@ xla_test(
     name = "gemm_fusion_autotuner_test",
     srcs = if_cuda_is_configured(["gemm_fusion_autotuner_test.cc"]),
     backend_tags = {"gpu": [
-        "requires-gpu-sm70",
+        "requires-gpu-sm80",
     ]},
     backends = [
         "gpu",
@@ -1614,6 +1611,7 @@ xla_cc_test(
         "//xla/tests:hlo_test_base",
         "//xla/tests:verified_hlo_module",
         "//xla/tests:xla_internal_test_main",  # fixdeps: keep
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest",
         "@local_tsl//tsl/platform:statusor",

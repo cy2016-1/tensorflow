@@ -1289,17 +1289,10 @@ ENTRY e {
   TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<VerifiedHloModule> verified_module,
                           ParseAndReturnVerifiedModule(kHloText));
 
-  if (GetCudaComputeCapability().IsAtLeast(se::CudaComputeCapability::AMPERE)) {
-    CompileAndOptionallyVerifyPtx(std::move(verified_module),
-                                  R"(
+  CompileAndOptionallyVerifyPtx(std::move(verified_module),
+                                R"(
 CHECK: mma
 )");
-  } else {
-    CompileAndOptionallyVerifyPtx(std::move(verified_module),
-                                  R"(
-CHECK: fma
-)");
-  }
 }
 
 TEST_F(TritonGemmTest, FailIfTooMuchShmem) {
@@ -2021,12 +2014,6 @@ ENTRY e {
 
 class TritonGemmLevel2Test : public TritonGemmTest {
  public:
-  void SetUp() override {
-    if (!GetCudaComputeCapability().IsAtLeast(
-            se::CudaComputeCapability::AMPERE)) {
-      GTEST_SKIP() << "Triton fusion on pre-Ampere GPUs is limited.";
-    }
-  }
   DebugOptions GetDebugOptionsForTest() override {
     DebugOptions debug_options = TritonGemmTest::GetDebugOptionsForTest();
     debug_options.set_xla_gpu_triton_fusion_level(2);
@@ -3061,11 +3048,6 @@ ENTRY e {
 }
 
 TEST_F(CompareTest, BF16TransposedLHS) {
-  if (!GetCudaComputeCapability().IsAtLeast(
-          se::CudaComputeCapability::AMPERE)) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
-
   const char* hlo_text_ref = R"(
 HloModule r
 
@@ -3106,11 +3088,6 @@ ENTRY e {
 }
 
 TEST_F(CompareTest, UsingOptinSharedMemoryOnAmpereProducesSameResult) {
-  // On pre-Ampere GPUs the test would use a different amount of shared memory.
-  if (!GetCudaComputeCapability().IsAtLeast(
-          se::CudaComputeCapability::AMPERE)) {
-    GTEST_SKIP() << "This test is for Ampere+ GPUs.";
-  }
   const se::DeviceDescription dev_info =
       backend().default_stream_executor()->GetDeviceDescription();
   constexpr int kBytesOfSharedMemoryTested = 64 * 1024;
@@ -3276,10 +3253,6 @@ ENTRY e {
 }
 
 TEST_F(CompareTest, S8BF16) {
-  if (!GetCudaComputeCapability().IsAtLeast(
-          se::CudaComputeCapability::AMPERE)) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const char* hlo_text_ref = R"(
 HloModule r
 
@@ -3327,10 +3300,6 @@ ENTRY e {
 }
 
 TEST_F(CompareTest, SplitK) {
-  if (!GetCudaComputeCapability().IsAtLeast(
-          se::CudaComputeCapability::AMPERE)) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const std::string hlo_text_ref = R"(
 HloModule t, is_scheduled=true
 
@@ -3404,10 +3373,6 @@ ENTRY e {
 }
 
 TEST_F(CompareTest, SplitKBatch) {
-  if (!GetCudaComputeCapability().IsAtLeast(
-          se::CudaComputeCapability::AMPERE)) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const std::string kHloTextRef = R"(
 HloModule m, is_scheduled=true
 
@@ -3470,10 +3435,6 @@ ENTRY e {
 }
 
 TEST_F(CompareTest, SplitKNontrivialBitcast) {
-  if (!GetCudaComputeCapability().IsAtLeast(
-          se::CudaComputeCapability::AMPERE)) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const std::string kHloTextRef = R"(
 HloModule module, is_scheduled=true
 
@@ -4048,10 +4009,6 @@ ENTRY e {
 }
 
 TEST_F(CompareTest, PredToBF16ConversionWorks) {
-  if (!GetCudaComputeCapability().IsAtLeast(
-          se::CudaComputeCapability::AMPERE)) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const std::string kHloTextTest = R"(
 HloModule m, is_scheduled=true
 
@@ -4172,10 +4129,6 @@ class TritonGemmContractionDims : public TritonGemmTest {
 };
 
 TEST_F(TritonGemmContractionDims, TritonDotForceContractionDims_1_0) {
-  if (!GetCudaComputeCapability().IsAtLeast(
-          se::CudaComputeCapability::AMPERE)) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const std::string kHloText = R"(
 HloModule m
 
@@ -4198,10 +4151,6 @@ ENTRY e {
 }
 
 TEST_F(TritonGemmContractionDims, TritonDotForceContractionDims_1_2_1_2) {
-  if (!GetCudaComputeCapability().IsAtLeast(
-          se::CudaComputeCapability::AMPERE)) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const std::string kHloText = R"(
 HloModule m
 
@@ -4224,10 +4173,6 @@ ENTRY e {
 }
 
 TEST_F(TritonGemmContractionDims, TritonDotForceContractionDims_1_2_0_1) {
-  if (!GetCudaComputeCapability().IsAtLeast(
-          se::CudaComputeCapability::AMPERE)) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const std::string kHloText = R"(
 HloModule m
 
@@ -4251,10 +4196,6 @@ ENTRY e {
 }
 
 TEST_F(TritonGemmContractionDims, TritonDotForceContractionDims_1_1) {
-  if (!GetCudaComputeCapability().IsAtLeast(
-          se::CudaComputeCapability::AMPERE)) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const std::string kHloText = R"(
 HloModule m
 
@@ -4318,9 +4259,6 @@ class Triton6xBF16GemmTestWithFlag : public TritonFilecheckTest {
 };
 
 TEST_F(Triton6xBF16GemmTest, Emit6xBF16GemmWhenBothInputsAreF32) {
-  if (!GetCudaComputeCapability().IsAtLeastAmpere()) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const char* kHloText = R"(
 HloModule t
 
@@ -4364,9 +4302,6 @@ CHECK:          %[[ACC:.*]] = arith.addf %[[DOT_LAST]], %[[C0]] : tensor<32x32xf
 }
 
 TEST_F(Triton6xBF16GemmTestWithFlag, Emit6xBF16GemmWhenBothInputsAreF32) {
-  if (!GetCudaComputeCapability().IsAtLeastAmpere()) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const char* kHloText = R"(
 HloModule t
 
@@ -4409,9 +4344,6 @@ CHECK:          %[[ACC:.*]] = arith.addf %[[DOT_LAST]], %[[C0]] : tensor<32x32xf
 }
 
 TEST_F(Triton6xBF16GemmTest, Triton6xBF16GemmWorksForLongContractingDimension) {
-  if (!GetCudaComputeCapability().IsAtLeastAmpere()) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const char* kHloText = R"(
 HloModule t
 
@@ -4442,9 +4374,6 @@ CHECK-COUNT-6:  %{{.*}} = tt.dot %{{.*}}, %{{.*}}, %{{.*}} {allowTF32 = false, m
 }
 
 TEST_F(Triton6xBF16GemmTest, Triton6xBF16GemmCanHandleInfinity) {
-  if (!GetCudaComputeCapability().IsAtLeastAmpere()) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const char* kHloText = R"(
 HloModule t
 
@@ -4489,9 +4418,6 @@ CHECK-COUNT-6:  %{{.*}} = tt.dot %{{.*}}, %{{.*}}, %{{.*}} {allowTF32 = false, m
 }
 
 TEST_F(Triton6xBF16GemmTest, Triton6xBF16GemmCanHandleNaN) {
-  if (!GetCudaComputeCapability().IsAtLeastAmpere()) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const char* kHloText = R"(
 HloModule t
 
@@ -4548,9 +4474,6 @@ CHECK-COUNT-6:  %{{.*}} = tt.dot %{{.*}}, %{{.*}}, %{{.*}} {allowTF32 = false, m
 //   x_lo:  5.17201445e+33
 // The result of x*x would be NaN instead of positive infinity.
 TEST_F(Triton6xBF16GemmTest, Triton6xBF16GemmWorksForInputsWithLargeExponent) {
-  if (!GetCudaComputeCapability().IsAtLeastAmpere()) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const char* kHloText = R"(
 HloModule t
 
@@ -4594,42 +4517,6 @@ CHECK-COUNT-6:  %{{.*}} = tt.dot %{{.*}}, %{{.*}}, %{{.*}} {allowTF32 = false, m
                                ErrorSpec{/*aabs=*/1e-6, /*arel=*/1e-6}));
 }
 
-TEST_F(Triton6xBF16GemmTestWithFlag, ShouldNotEmit6xBF16GemmForPreAmpere) {
-  if (GetCudaComputeCapability().IsAtLeastAmpere()) {
-    GTEST_SKIP() << "6xBF16Gemm should be emitted post-Ampere.";
-  }
-  const char* kHloText = R"(
-HloModule t
-
-triton_dot {
-  p0 = f32[5,7] parameter(0)
-  p1 = f32[7,33] parameter(1)
-  ROOT dot = f32[5,33] dot(p0, p1),
-    lhs_contracting_dims={1}, rhs_contracting_dims={0}
-}
-
-ENTRY e {
-  p0 = f32[5,7]{1,0} parameter(0)
-  p1 = f32[7,33]{1,0} parameter(1)
-  ROOT _ = f32[5,33] fusion(p0, p1), kind=kCustom, calls=triton_dot,
-    backend_config={"fusion_backend_config": {kind: "__triton_gemm",
-    triton_gemm_config:
-    {"block_m":32,"block_n":32,"block_k":32,"split_k":1,"num_stages":1,"num_warps":1,"num_ctas":1}}}
-}
-)";
-  TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<VerifiedHloModule> verified_module,
-                          ParseAndReturnVerifiedModule(kHloText));
-
-  CompileAndOptionallyVerifyPtx(std::move(verified_module),
-                                R"(
-CHECK-NOT: mma
-CHECK: selp.f32
-CHECK: st.shared{{(\.v[24])?}}.f32
-CHECK: ld.shared{{(\.v[24])?}}.f32
-CHECK: fma.rn.f32
-CHECK: st.shared{{(\.v[24])?}}.f32
-)");
-}
 
 TEST_F(Triton6xBF16GemmTest, Emit6xBF16GemmEndToEnd) {
   const char* kHloText = R"(
@@ -4645,18 +4532,13 @@ ENTRY e {
 )";
   TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<VerifiedHloModule> verified_module,
                           ParseAndReturnVerifiedModule(kHloText));
-  if (GetCudaComputeCapability().IsAtLeastAmpere()) {
-    CompileAndOptionallyVerifyPtx(std::move(verified_module),
-                                  R"(
+  CompileAndOptionallyVerifyPtx(std::move(verified_module),
+                                R"(
 CHECK: mma.sync.aligned.{{.*}}.row.col.f32.bf16.bf16.f32
 CHECK-NOT: mma.sync.aligned.{{.*}}.row.col.f32.tf32.tf32.f32
 )");
-    EXPECT_TRUE(RunAndCompare(kHloText, ErrorSpec{/*aabs=*/1e-6,
-                                                  /*arel=*/1e-6}));
-  } else {
-    EXPECT_THAT(CompileToExecutable(std::move(verified_module)),
-                tsl::testing::StatusIs(absl::StatusCode::kUnimplemented));
-  }
+  EXPECT_TRUE(RunAndCompare(kHloText, ErrorSpec{/*aabs=*/1e-6,
+                                                /*arel=*/1e-6}));
 }
 
 // In these tests, we depend on "algorithm" annotations for selecting the 3XBF16
@@ -4702,9 +4584,6 @@ class Triton3xBF16GemmTestWithFlag : public TritonFilecheckTest {
 };
 
 TEST_F(Triton3xBF16GemmTest, Emit3xBF16GemmWhenBothInputsAreF32) {
-  if (!GetCudaComputeCapability().IsAtLeastAmpere()) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const char* kHloText = R"(
 HloModule t
 
@@ -4748,9 +4627,6 @@ CHECK:          %[[ACC:.*]] = arith.addf %[[DOT_LAST]], %[[C0]] : tensor<32x32xf
 }
 
 TEST_F(Triton3xBF16GemmTestWithFlag, Emit3xBF16GemmWhenBothInputsAreF32) {
-  if (!GetCudaComputeCapability().IsAtLeastAmpere()) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const char* kHloText = R"(
 HloModule t
 
@@ -4822,9 +4698,6 @@ CHECK-NOT:  tt.dot
 }
 
 TEST_F(Triton3xBF16GemmTest, Triton3xBF16GemmWorksForLongContractingDimension) {
-  if (!GetCudaComputeCapability().IsAtLeastAmpere()) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const char* kHloText = R"(
 HloModule t
 
@@ -4855,9 +4728,6 @@ CHECK-COUNT-3:  %{{.*}} = tt.dot %{{.*}}, %{{.*}}, %{{.*}} {allowTF32 = false, m
 }
 
 TEST_F(Triton3xBF16GemmTest, Triton3xBF16GemmCanHandleInfinity) {
-  if (!GetCudaComputeCapability().IsAtLeastAmpere()) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const char* kHloText = R"(
 HloModule t
 
@@ -4902,9 +4772,6 @@ CHECK-COUNT-3:  %{{.*}} = tt.dot %{{.*}}, %{{.*}}, %{{.*}} {allowTF32 = false, m
 }
 
 TEST_F(Triton3xBF16GemmTest, Triton3xBF16GemmCanHandleNaN) {
-  if (!GetCudaComputeCapability().IsAtLeastAmpere()) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const char* kHloText = R"(
 HloModule t
 
@@ -4951,9 +4818,6 @@ CHECK-COUNT-3:  %{{.*}} = tt.dot %{{.*}}, %{{.*}}, %{{.*}} {allowTF32 = false, m
 }
 
 TEST_F(Triton3xBF16GemmTest, Triton3xBF16GemmWorksForInputsWithLargeExponent) {
-  if (!GetCudaComputeCapability().IsAtLeastAmpere()) {
-    GTEST_SKIP() << "No BF16 before Ampere.";
-  }
   const char* kHloText = R"(
 HloModule t
 
@@ -5011,19 +4875,57 @@ ENTRY e {
 )";
   TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<VerifiedHloModule> verified_module,
                           ParseAndReturnVerifiedModule(kHloText));
-  if (GetCudaComputeCapability().IsAtLeastAmpere()) {
-    CompileAndOptionallyVerifyPtx(std::move(verified_module),
-                                  R"(
+  CompileAndOptionallyVerifyPtx(std::move(verified_module),
+                                R"(
 CHECK: mma.sync.aligned.{{.*}}.row.col.f32.bf16.bf16.f32
 CHECK-NOT: mma.sync.aligned.{{.*}}.row.col.f32.tf32.tf32.f32
 )");
-    EXPECT_TRUE(RunAndCompare(kHloText, ErrorSpec{/*aabs=*/1e-5,
-                                                  /*arel=*/1e-5}));
+  EXPECT_TRUE(RunAndCompare(kHloText, ErrorSpec{/*aabs=*/1e-5,
+                                                /*arel=*/1e-5}));
+}
 
-  } else {
-    EXPECT_THAT(CompileToExecutable(std::move(verified_module)),
-                tsl::testing::StatusIs(absl::StatusCode::kUnimplemented));
-  }
+using TritonEmitterTest = TritonGemmTest;
+
+TEST_F(TritonEmitterTest, EmitterFailsIfComputeCapabilityIsBelowAmpere) {
+  const std::string kHloText = R"(
+HloModule module, is_scheduled=true
+
+triton_gemm_dot {
+  p0 = f32[10,20] parameter(0)
+  p1 = f32[20,30] parameter(1)
+  ROOT dot = f32[10,30] dot(p0, p1),
+    lhs_contracting_dims={1}, rhs_contracting_dims={0}
+}
+
+ENTRY entry {
+  p0 = f32[10,20] parameter(0)
+  p1 = f32[20,30] parameter(1)
+  ROOT r = f32[10,30] fusion(p0, p1),
+    kind=kCustom, calls=triton_gemm_dot
+})";
+  TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<VerifiedHloModule> hlo_module,
+                          ParseAndReturnVerifiedModule(kHloText));
+  const HloComputation* triton_dot_computation =
+      hlo_module->entry_computation()
+          ->root_instruction()
+          ->fused_instructions_computation();
+  const se::DeviceDescription dev_info =
+      TestGpuDeviceInfo::RTXA6000DeviceInfo();
+  llvm::LLVMContext llvm_ctx;
+  llvm::Module llvm_module("module", llvm_ctx);
+  mlir::MLIRContext mlir_context;
+
+  TritonGemmConfig config;
+  EXPECT_THAT(
+      TritonWrapper(*TritonFusionAnalysis::Execute(*triton_dot_computation),
+                    "test_fn", triton_dot_computation, kTritonGemmFusionKind,
+                    se::CudaComputeCapability{se::CudaComputeCapability::VOLTA,
+                                              /*minor=*/0},
+                    dev_info, config, &llvm_module, &EmitMatMul, mlir_context),
+      ::testing::status::StatusIs(
+          absl::StatusCode::kFailedPrecondition,
+          ::testing::StrEq(
+              "Triton support is only enabled for Ampere GPUs and up.")));
 }
 
 }  // namespace
