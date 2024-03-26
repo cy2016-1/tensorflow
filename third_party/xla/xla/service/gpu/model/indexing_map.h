@@ -31,6 +31,7 @@ limitations under the License.
 #include "mlir/IR/AffineExpr.h"  // from @llvm-project
 #include "mlir/IR/AffineMap.h"  // from @llvm-project
 #include "mlir/IR/MLIRContext.h"  // from @llvm-project
+#include "mlir/Support/LLVM.h"  // from @llvm-project
 #include "xla/hlo/ir/hlo_instruction.h"
 #include "xla/service/gpu/model/affine_map_printer.h"
 
@@ -318,6 +319,14 @@ class IndexingMap {
   // Rescales all symbols that are sufficiently constrained through `s? mod x =
   // [N, N]` constraints. Returns true if a rescale took place, otherwise false.
   bool RescaleSymbols();
+
+  // TODO(hebecker): Rearrange code structure so that we can call
+  // `ComputeInputToOutputIndexing` from `:indexing_analysis` directly.
+  using IndexingMapProvider = llvm::function_ref<IndexingMap(
+      const HloInstruction*, int64_t /*operand id*/, mlir::MLIRContext*)>;
+
+  // Replace RTVars that yield constants by indexing expressions
+  void ReplaceConstantRTVars(IndexingMapProvider indexing_map_provider);
 
  private:
   IndexingMap() = default;

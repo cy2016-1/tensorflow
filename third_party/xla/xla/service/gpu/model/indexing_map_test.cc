@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "xla/service/gpu/model/indexing_map.h"
 
+#include <cstdint>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -24,8 +25,12 @@ limitations under the License.
 #include "mlir/IR/AffineExpr.h"  // from @llvm-project
 #include "mlir/IR/AffineMap.h"  // from @llvm-project
 #include "mlir/IR/MLIRContext.h"  // from @llvm-project
+#include "xla/hlo/ir/hlo_instruction.h"
+#include "xla/literal_util.h"
 #include "xla/service/gpu/model/affine_map_printer.h"
+#include "xla/service/gpu/model/indexing_analysis.h"
 #include "xla/service/gpu/model/indexing_test_utils.h"
+#include "xla/shape_util.h"
 #include "xla/tests/hlo_test_base.h"
 #include "tsl/platform/test.h"
 
@@ -702,6 +707,140 @@ TEST(IntervalComparisionTest, Comparisons) {
 
   EXPECT_EQ(point != 15, false);
   EXPECT_EQ(point != 16, true);
+}
+
+static IndexingMap GetIndexingMapForInstruction(
+    const HloInstruction* instr, int64_t operand_idx,
+    mlir::MLIRContext* mlir_context) {
+  HloInstructionIndexing indexing =
+      ComputeOutputToInputIndexing(instr, operand_idx, mlir_context);
+  return *indexing.indexing_maps[0].begin();
+}
+
+TEST_F(IndexingMapTest, ReplaceConstantRTVars_ScalarConstant) {
+  // auto zero_dim_map = AffineMap::get(&mlir_context_);
+  auto constant =
+      HloInstruction::CreateConstant(LiteralUtil::CreateR0<uint32_t>(42));
+  std::vector<RTVar> rt_vars;
+  rt_vars.emplace_back(Interval{42, 42}, constant.get(),
+                       AffineMap::get(0, 0, {}, &mlir_context_));
+
+  IndexingMap indexing_map(ParseAffineMap("()[s0] -> (s0)", &mlir_context_),
+                           /*dimensions=*/{},
+                           /*range_vars=*/{}, std::move(rt_vars));
+
+  indexing_map.ReplaceConstantRTVars(GetIndexingMapForInstruction);
+
+  EXPECT_THAT(indexing_map.ToString(printer_), MatchIndexingString(R"(
+              () -> (42)
+              domain:
+              )"));
+}
+
+TEST_F(IndexingMapTest, ReplaceConstantRTVars_StaticIndexIntoTensorConstant) {
+  // auto zero_dim_map = AffineMap::get(&mlir_context_);
+  auto constant = HloInstruction::CreateConstant(
+      LiteralUtil::CreateR2<uint32_t>({{1, 2, 3, 4}, {11, 12, 13, 14}}));
+  std::vector<RTVar> rt_vars;
+  rt_vars.emplace_back(Interval{1, 14}, constant.get(),
+                       ParseAffineMap("() -> (1,2)", &mlir_context_));
+
+  IndexingMap indexing_map(ParseAffineMap("()[s0] -> (s0)", &mlir_context_),
+                           /*dimensions=*/{},
+                           /*range_vars=*/{}, std::move(rt_vars));
+
+  indexing_map.ReplaceConstantRTVars(GetIndexingMapForInstruction);
+
+  EXPECT_THAT(indexing_map.ToString(printer_), MatchIndexingString(R"(
+              () -> (13)
+              domain:
+              )"));
+}
+
+TEST_F(IndexingMapTest, ReplaceConstantRTVars_NonFoldableTensor) {
+  // auto zero_dim_map = AffineMap::get(&mlir_context_);
+  auto constant = HloInstruction::CreateConstant(
+      LiteralUtil::CreateR2<uint32_t>({{1, 2, 3, 4}, {11, 12, 13, 14}}));
+  std::vector<RTVar> rt_vars;
+  rt_vars.emplace_back(Interval{1, 14}, constant.get(),
+                       ParseAffineMap("(d0) -> (1, d0)", &mlir_context_));
+
+  IndexingMap indexing_map(ParseAffineMap("(d0)[s0] -> (s0)", &mlir_context_),
+                           /*dimensions=*/{},
+                           /*range_vars=*/{}, std::move(rt_vars));
+
+  auto previous_indexing_map = indexing_map;
+  indexing_map.ReplaceConstantRTVars(GetIndexingMapForInstruction);
+
+  // This tensor can't be folded into an affine expression, so we expect no
+  // change to the indexing map.
+  EXPECT_EQ(previous_indexing_map, indexing_map);
+}
+
+TEST_F(IndexingMapTest, ReplaceConstantRTVars_Iota) {
+  auto iota = HloInstruction::CreateIota(
+      ShapeUtil::MakeShape(PrimitiveType::S64, {10, 10}), 0);
+  std::vector<RTVar> rt_vars;
+  rt_vars.emplace_back(Interval{0, 9}, iota.get(),
+                       ParseAffineMap("(d0) -> (d0, 7)", &mlir_context_));
+
+  IndexingMap indexing_map(
+      ParseAffineMap("(d0)[s0] -> (d0, s0)", &mlir_context_),
+      /*dimensions=*/{{0, 255}},
+      /*range_vars=*/{}, std::move(rt_vars));
+
+  indexing_map.ReplaceConstantRTVars(GetIndexingMapForInstruction);
+
+  EXPECT_THAT(indexing_map.ToString(printer_), MatchIndexingString(R"(
+              (d0) -> (d0, d0)
+              domain:
+              d0 in [0, 255]
+              )"));
+}
+
+TEST_F(IndexingMapTest, ReplaceConstantRTVars_IotaAsConstant) {
+  auto iota = HloInstruction::CreateIota(
+      ShapeUtil::MakeShape(PrimitiveType::S64, {10, 10}), 1);
+  std::vector<RTVar> rt_vars;
+  rt_vars.emplace_back(Interval{0, 9}, iota.get(),
+                       ParseAffineMap("(d0) -> (d0, 7)", &mlir_context_));
+
+  IndexingMap indexing_map(
+      ParseAffineMap("(d0)[s0] -> (d0, s0)", &mlir_context_),
+      /*dimensions=*/{{0, 255}},
+      /*range_vars=*/{}, std::move(rt_vars));
+
+  indexing_map.ReplaceConstantRTVars(GetIndexingMapForInstruction);
+
+  EXPECT_THAT(indexing_map.ToString(printer_), MatchIndexingString(R"(
+              (d0) -> (d0, 7)
+              domain:
+              d0 in [0, 255]
+              )"));
+}
+
+TEST_F(IndexingMapTest, ReplaceConstantRTVars_ConstraintsGetUpdated) {
+  auto iota = HloInstruction::CreateIota(
+      ShapeUtil::MakeShape(PrimitiveType::S64, {10, 10}), 0);
+  std::vector<RTVar> rt_vars;
+  rt_vars.emplace_back(Interval{0, 9}, iota.get(),
+                       ParseAffineMap("(d0) -> (d0, 7)", &mlir_context_));
+
+  IndexingMap indexing_map(
+      ParseAffineMap("(d0)[s0] -> (d0, s0)", &mlir_context_),
+      /*dimensions=*/{{0, 255}},
+      /*range_vars=*/{}, std::move(rt_vars));
+  indexing_map.AddConstraint(ParseAffineExpr("s0 mod 2", &mlir_context_),
+                             Interval{0, 0});
+
+  indexing_map.ReplaceConstantRTVars(GetIndexingMapForInstruction);
+
+  EXPECT_THAT(indexing_map.ToString(printer_), MatchIndexingString(R"(
+              (d0) -> (d0, d0)
+              domain:
+              d0 in [0, 255]
+              d0 mod 2 in [0, 0]
+              )"));
 }
 
 }  // namespace

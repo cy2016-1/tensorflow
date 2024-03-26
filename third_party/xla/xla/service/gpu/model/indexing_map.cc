@@ -16,6 +16,7 @@ limitations under the License.
 #include "xla/service/gpu/model/indexing_map.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <numeric>
@@ -34,6 +35,9 @@ limitations under the License.
 #include "mlir/IR/AffineMap.h"  // from @llvm-project
 #include "mlir/IR/MLIRContext.h"  // from @llvm-project
 #include "mlir/Support/LLVM.h"  // from @llvm-project
+#include "xla/hlo/ir/hlo_casting_utils.h"
+#include "xla/hlo/ir/hlo_instruction.h"
+#include "xla/hlo/ir/hlo_instructions.h"
 #include "xla/service/gpu/model/affine_map_printer.h"
 #include "tsl/platform/logging.h"  // IWYU pragma: keep
 
@@ -1328,6 +1332,59 @@ bool IndexingMap::RescaleSymbols() {
   }
 
   return !to_delete.empty();
+}
+
+static std::optional<AffineExpr> FoldsIntoConstantIndexingExpression(
+    const HloInstruction* instr, const mlir::AffineMap& affine_map,
+    MLIRContext* mlir_context,
+    IndexingMap::IndexingMapProvider indexing_map_provider) {
+  auto constant_expr = DynCast<HloConstantInstruction>(instr);
+  if (constant_expr) {
+    if (affine_map.isConstant()) {
+      const auto idx = affine_map.getConstantResults();
+      return getAffineConstantExpr(
+          constant_expr->literal().GetIntegralAsS64(idx).value(), mlir_context);
+    }
+    return std::nullopt;
+  }
+
+  auto iota_expr = DynCast<HloIotaInstruction>(instr);
+  if (iota_expr) {
+    auto iota_dimension = iota_expr->iota_dimension();
+    CHECK(iota_dimension < affine_map.getNumResults());
+    return affine_map.getResults()[iota_dimension];
+  }
+
+  return std::nullopt;
+}
+
+void IndexingMap::ReplaceConstantRTVars(
+    IndexingMap::IndexingMapProvider indexing_map_provider) {
+  if (rt_vars_.empty()) return;
+
+  std::vector<size_t> to_delete;
+
+  for (const auto& [index, rt_var] : llvm::enumerate(rt_vars_)) {
+    auto folded_expr = FoldsIntoConstantIndexingExpression(
+        rt_var.hlo, rt_var.map, GetMLIRContext(), indexing_map_provider);
+    if (!folded_expr.has_value()) continue;
+
+    auto symbol_index = range_vars_.size() + index;
+    affine_map_ = affine_map_.replace(
+        {{mlir::getAffineSymbolExpr(symbol_index, GetMLIRContext()),
+          folded_expr.value()}});
+    for (auto& [constraint, interval] : constraints_) {
+      constraint = constraint.replace(
+          mlir::getAffineSymbolExpr(symbol_index, GetMLIRContext()),
+          folded_expr.value());
+    }
+
+    to_delete.emplace_back(index);
+  }
+
+  for (auto index : llvm::reverse(to_delete)) {
+    rt_vars_.erase(rt_vars_.begin() + index);
+  }
 }
 
 }  // namespace gpu
